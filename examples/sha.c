@@ -99,9 +99,10 @@ main()
   	timeinfo = localtime ( &rawtime );
   	printf ( "Current local time and date: %s", asctime (timeinfo) );
 		sha_ctx_init(&ctx, cfd, NULL, 0);
+    uint32_t str_len = strlen(text);
     for(int j = 0x00; j < 1000 * 1000; j++){
 
-		sha_hash(&ctx, text, strlen(text), digest);
+		sha_hash(&ctx, text, str_len, digest);
 		sha_hash(&ctx, digest, 32, digest_final);
 
 	}
