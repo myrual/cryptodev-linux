@@ -77,6 +77,7 @@ main()
 	int cfd = -1, i;
 	struct cryptodev_ctx ctx;
 	uint8_t digest[32];
+	uint8_t digest_final[32];
 	char text[] = "The quick brown fox jumps over the lazy dogThe quick brown fox jumps over the lazy dogThe quick brown fox jumps over the lazy dog";
 	uint8_t expected[] = "\x2f\xd4\xe1\xc6\x7a\x2d\x28\xfc\xed\x84\x9e\xe1\xbb\x76\xe7\x39\x1b\x93\xeb\x12";
 
@@ -97,16 +98,11 @@ main()
   	time ( &rawtime );
   	timeinfo = localtime ( &rawtime );
   	printf ( "Current local time and date: %s", asctime (timeinfo) );
+
     for(int j = 0x00; j < 1000 * 1000; j++){
 		sha_ctx_init(&ctx, cfd, NULL, 0);
-	
 		sha_hash(&ctx, text, strlen(text), digest);
-	
-		sha_ctx_deinit(&ctx);
-	
-		sha_ctx_init(&ctx, cfd, NULL, 0);
-		memcpy(text, digest, 32);
-		sha_hash(&ctx, text, strlen(text), digest);
+		sha_hash(&ctx, digest, 32, digest_final);
 		sha_ctx_deinit(&ctx);
 	}
   	time ( &rawtime );
