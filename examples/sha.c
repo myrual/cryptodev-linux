@@ -98,13 +98,14 @@ main()
   	time ( &rawtime );
   	timeinfo = localtime ( &rawtime );
   	printf ( "Current local time and date: %s", asctime (timeinfo) );
-
-    for(int j = 0x00; j < 1000 * 1000; j++){
 		sha_ctx_init(&ctx, cfd, NULL, 0);
+    for(int j = 0x00; j < 1000 * 1000; j++){
+
 		sha_hash(&ctx, text, strlen(text), digest);
 		sha_hash(&ctx, digest, 32, digest_final);
-		sha_ctx_deinit(&ctx);
+
 	}
+		sha_ctx_deinit(&ctx);
   	time ( &rawtime );
   	timeinfo = localtime ( &rawtime );
   	printf ( "exit program: local time and date: %s", asctime (timeinfo) );
