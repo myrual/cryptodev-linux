@@ -8,21 +8,19 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/ioctl.h>
 #include <crypto/cryptodev.h>
 #include "sha.h"
 
 int sha_ctx_init(struct cryptodev_ctx* ctx, int cfd, const uint8_t *key, unsigned int key_size)
 {
-#ifdef CIOCGSESSINFO
-	struct session_info_op siop;
-#endif
 
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->cfd = cfd;
 
 	if (key == NULL)
-		ctx->sess.mac = CRYPTO_SHA1;
+		ctx->sess.mac = CRYPTO_SHA2_256;
 	else {
 		ctx->sess.mac = CRYPTO_SHA1_HMAC;
 		ctx->sess.mackeylen = key_size;
@@ -33,20 +31,6 @@ int sha_ctx_init(struct cryptodev_ctx* ctx, int cfd, const uint8_t *key, unsigne
 		return -1;
 	}
 
-#ifdef CIOCGSESSINFO
-	siop.ses = ctx->sess.ses;
-	if (ioctl(ctx->cfd, CIOCGSESSINFO, &siop)) {
-		perror("ioctl(CIOCGSESSINFO)");
-		return -1;
-	}
-	printf("Got %s with driver %s\n",
-			siop.hash_info.cra_name, siop.hash_info.cra_driver_name);
-	if (!(siop.flags & SIOP_FLAG_KERNEL_DRIVER_ONLY)) {
-		printf("Note: This is not an accelerated cipher\n");
-	}
-	/*printf("Alignmask is %x\n", (unsigned int)siop.alignmask);*/
-	ctx->alignmask = siop.alignmask;
-#endif
 	return 0;
 }
 
@@ -92,8 +76,8 @@ main()
 {
 	int cfd = -1, i;
 	struct cryptodev_ctx ctx;
-	uint8_t digest[20];
-	char text[] = "The quick brown fox jumps over the lazy dog";
+	uint8_t digest[32];
+	char text[] = "The quick brown fox jumps over the lazy dogThe quick brown fox jumps over the lazy dogThe quick brown fox jumps over the lazy dog";
 	uint8_t expected[] = "\x2f\xd4\xe1\xc6\x7a\x2d\x28\xfc\xed\x84\x9e\xe1\xbb\x76\xe7\x39\x1b\x93\xeb\x12";
 
 	/* Open the crypto device */
@@ -108,23 +92,32 @@ main()
 		perror("fcntl(F_SETFD)");
 		return 1;
 	}
-
-	sha_ctx_init(&ctx, cfd, NULL, 0);
+  	time_t rawtime;
+  	struct tm * timeinfo;
+  	time ( &rawtime );
+  	timeinfo = localtime ( &rawtime );
+  	printf ( "Current local time and date: %s", asctime (timeinfo) );
+    for(int j = 0x00; j < 1000 * 1000; j++){
+		sha_ctx_init(&ctx, cfd, NULL, 0);
 	
-	sha_hash(&ctx, text, strlen(text), digest);
+		sha_hash(&ctx, text, strlen(text), digest);
 	
-	sha_ctx_deinit(&ctx);
-
+		sha_ctx_deinit(&ctx);
+	
+		sha_ctx_init(&ctx, cfd, NULL, 0);
+		memcpy(text, digest, 32);
+		sha_hash(&ctx, text, strlen(text), digest);
+		sha_ctx_deinit(&ctx);
+	}
+  	time ( &rawtime );
+  	timeinfo = localtime ( &rawtime );
+  	printf ( "exit program: local time and date: %s", asctime (timeinfo) );
 	printf("digest: ");
-	for (i = 0; i < 20; i++) {
+	for (i = 0; i < 32; i++) {
 		printf("%02x:", digest[i]);
 	}
 	printf("\n");
 	
-	if (memcmp(digest, expected, 20) != 0) {
-		fprintf(stderr, "SHA1 hashing failed\n");
-		return 1;
-	}
 
 	/* Close the original descriptor */
 	if (close(cfd)) {
